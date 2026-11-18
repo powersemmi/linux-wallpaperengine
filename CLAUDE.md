@@ -11,8 +11,10 @@ limitations live in `pkg/STATUS.md`; update it whenever the package changes stat
 - `moloko` is the default branch on GitHub. It is `upstream/main` plus a short series of real
   commits: the background-layer default, two `CMakeLists.txt` fixes (CEF flags, bundled
   libraries out of the install), a `[[maybe_unused]]` on `ScriptEngine::m_mediaSource` that
-  clang needs under CEF's `-Werror`, the package in `pkg/`, and these notes. Keep the series short
-  and rebase-friendly; code changes go in their own commits, separate from packaging.
+  clang needs under CEF's `-Werror`, workspace parallax (`src/WallpaperEngine/Input/WorkspaceParallax.*`
+  with hooks in `CWallpaper`, `CScene`, `RenderContext` and `ApplicationContext`), the package in
+  `pkg/`, and these notes. Keep the series short and rebase-friendly; code changes go in their own
+  commits, separate from packaging.
 
 ## Syncing with upstream
 
@@ -24,6 +26,8 @@ git switch moloko && git rebase upstream/main
 git push --force-with-lease origin moloko
 ```
 
+If upstream changes the mouse parallax in `CScene`, `CImage` or `CParticle`, or the final blit in
+`CWallpaper::render`, re-check the workspace parallax commit against it.
 If upstream changes the `--layer` option, the CEF flag handling or the `add_subdirectory` calls of
 `src/External`, re-check the code commits against it; drop a commit that upstream made redundant.
 
@@ -66,4 +70,12 @@ If upstream changes the `--layer` option, the CEF flag handling or the `add_subd
   under `timeout -s INT 12`. While it runs, `niri msg layers` must list the
   `linux-wallpaperengine` surface under the Background layer of DP-3, and `grim -o DP-3` shows
   the frame. The log must end with `Stopping`, without a crash.
+- Iterate on code with a dev build of the working tree in `cmake-build-dev/` (ignored by git):
+  the same cmake call as the PKGBUILD's `build()` with clang and `-O3`, LTO left out for speed.
+  The binary is `cmake-build-dev/output/linux-wallpaperengine`.
+- Workspace parallax check: run the dev binary on DP-3 with `--workspace-parallax stdin
+  --workspace-parallax-log`, feed `DP-3 0.5 0` then `DP-3 0.5 1`, and grab `grim -o DP-3` at each;
+  the image must move up by strength × 1440 px. With `--workspace-parallax niri` the log shows the
+  spring after `niri msg action focus-workspace-down`. Screenshots catch the user's windows: delete
+  them after use.
 - Never touch `/etc/paru.conf`, the niri config or the Noctalia config: they belong to the user.
