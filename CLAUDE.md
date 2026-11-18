@@ -35,6 +35,10 @@ If upstream changes the `--layer` option, the CEF flag handling or the `add_subd
 
 - `pkg/PKGBUILD` builds `linux-wallpaperengine-moloko` from the fork's `moloko` branch over
   git+https: a local build tests what is pushed, not the working tree.
+- paru decides on an update by the `pkgver` in `pkg/.SRCINFO`, not by the branch: the package is not
+  `-git`. To publish a code change, set `pkgver` in `pkg/PKGBUILD` to `r<rev-list --count>.<short
+  sha>` of the code commit, regenerate `.SRCINFO` and push both; the user then runs
+  `paru -Sy --pkgbuilds && paru -S linux-wallpaperengine-moloko`.
 - After any PKGBUILD change regenerate `pkg/.SRCINFO` with `makepkg --printsrcinfo > .SRCINFO`
   (inside `pkg/`) and commit both.
 - Build flags follow the linux-moloko kernel package: `_name=value` from the environment, checked in

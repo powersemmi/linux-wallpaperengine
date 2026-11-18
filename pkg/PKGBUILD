@@ -5,7 +5,7 @@
 
 pkgname=linux-wallpaperengine-moloko
 _pkgname=linux-wallpaperengine
-pkgver=r648.b18ac26
+pkgver=r653.d8d15b5
 pkgrel=1
 pkgdesc='Wallpaper Engine backgrounds for Linux, built for one machine (moloko)'
 arch=(x86_64)

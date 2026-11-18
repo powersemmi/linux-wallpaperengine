@@ -1,6 +1,6 @@
 pkgbase = linux-wallpaperengine-moloko
 	pkgdesc = Wallpaper Engine backgrounds for Linux, built for one machine (moloko)
-	pkgver = r648.b18ac26
+	pkgver = r653.d8d15b5
 	pkgrel = 1
 	url = https://github.com/powersemmi/linux-wallpaperengine
 	arch = x86_64
