@@ -125,6 +125,10 @@ list(REMOVE_ITEM CEF_CXX_COMPILER_FLAGS -std=c++17)
 list(REMOVE_ITEM CEF_COMPILER_FLAGS -fvisibility=hidden)
 list(REMOVE_ITEM CEF_COMPILER_FLAGS -fvisibility-inlines-hidden)
 list(APPEND CEF_CXX_COMPILER_FLAGS -std=c++20)
+# let CMAKE_<LANG>_FLAGS and CMAKE_<LANG>_FLAGS_RELEASE pick the target CPU and the optimization level;
+# CEF's own -march=x86-64 and -O2 come later on the command line and would override them
+list(REMOVE_ITEM CEF_COMPILER_FLAGS -march=x86-64)
+list(REMOVE_ITEM CEF_COMPILER_FLAGS_RELEASE -O2)
 list(APPEND CEF_EXE_LINKER_FLAGS -rdynamic)
 # remove the vulkan library from the files to copy so it doesn't fail after removing it
 list(REMOVE_ITEM CEF_BINARY_FILES libvulkan.so.1)
