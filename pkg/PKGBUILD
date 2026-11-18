@@ -1,10 +1,11 @@
-# Flags: override from the environment, e.g. `_lto=no paru -S linux-wallpaperengine-moloko`.
-: "${_lto:=yes}"           # yes | no
+# Flags: override from the environment, e.g. `_cc=gcc paru -S linux-wallpaperengine-moloko`.
+: "${_lto:=full}"          # full | thin | no
 : "${_o3:=yes}"            # yes | no
+: "${_cc:=clang}"          # clang | gcc
 
 pkgname=linux-wallpaperengine-moloko
 _pkgname=linux-wallpaperengine
-pkgver=r647.34af1c9
+pkgver=r648.b18ac26
 pkgrel=1
 pkgdesc='Wallpaper Engine backgrounds for Linux, built for one machine (moloko)'
 arch=(x86_64)
@@ -53,9 +54,10 @@ makedepends=(
   ninja
   wayland-protocols
 )
+[[ $_cc = clang ]] && makedepends+=(clang lld llvm)
 provides=("$_pkgname")
 conflicts=("$_pkgname" "$_pkgname-git" niri-wallpaperengine-git)
-# LTO comes from CMake (_lto), not from makepkg.
+# LTO comes from _lto, not from makepkg.
 options=(!lto !debug)
 source=("$_pkgname::git+https://github.com/powersemmi/linux-wallpaperengine.git#branch=moloko")
 sha256sums=('SKIP')
@@ -69,8 +71,13 @@ _flag() {
 }
 
 _check_flags() {
-  _flag _lto "$_lto" yes no
+  _flag _lto "$_lto" full thin no
   _flag _o3 "$_o3" yes no
+  _flag _cc "$_cc" clang gcc
+  if [[ $_cc = gcc && $_lto = thin ]]; then
+    error "_lto=thin needs _cc=clang: GCC has no ThinLTO"
+    exit 1
+  fi
 }
 
 pkgver() {
@@ -87,25 +94,35 @@ prepare() {
 build() {
   local opt=-O2
   [[ $_o3 = yes ]] && opt=-O3
-  local ipo=OFF
-  [[ $_lto = yes ]] && ipo=ON
+
+  # The tools are given by path: `clang` in the user's PATH is a compiler-cache shim.
+  # Clang links with lld. GCC LTO needs ld.bfd, which has the GCC plugin.
+  # LTO objects go into static archives through the LTO-aware ar and ranlib.
+  local cc lto=
+  LDFLAGS=${LDFLAGS//-fuse-ld=lld/}
+  if [[ $_cc = clang ]]; then
+    cc=(-DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++
+      -DCMAKE_AR=/usr/bin/llvm-ar -DCMAKE_RANLIB=/usr/bin/llvm-ranlib)
+    LDFLAGS+=" -fuse-ld=lld"
+    [[ $_lto != no ]] && lto=" -flto=$_lto"
+  else
+    cc=(-DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++
+      -DCMAKE_AR=/usr/bin/gcc-ar -DCMAKE_RANLIB=/usr/bin/gcc-ranlib)
+    [[ $_lto != no ]] && lto=" -flto=auto"
+  fi
 
   # CMAKE_<LANG>_FLAGS_RELEASE comes after makepkg's CFLAGS, so it decides the -O level.
-  CFLAGS+=" -march=native -Wno-builtin-macro-redefined"
-  CXXFLAGS+=" -march=native -Wno-builtin-macro-redefined"
-  # GCC LTO needs a linker with the GCC plugin: ld.bfd, not lld from makepkg.conf.
-  LDFLAGS=${LDFLAGS//-fuse-ld=lld/}
+  CFLAGS+=" -march=native -Wno-builtin-macro-redefined$lto"
+  CXXFLAGS+=" -march=native -Wno-builtin-macro-redefined$lto"
+  LDFLAGS+="$lto"
   export CFLAGS CXXFLAGS LDFLAGS
 
   cmake -B build -S $_pkgname -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/opt/$_pkgname \
-    -DCMAKE_C_COMPILER=/usr/bin/gcc \
-    -DCMAKE_CXX_COMPILER=/usr/bin/g++ \
+    "${cc[@]}" \
     -DCMAKE_C_FLAGS_RELEASE="$opt -DNDEBUG" \
     -DCMAKE_CXX_FLAGS_RELEASE="$opt -DNDEBUG" \
-    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=$ipo \
-    -DCMAKE_POLICY_DEFAULT_CMP0069=NEW \
     -Wno-dev
   cmake --build build
 }
