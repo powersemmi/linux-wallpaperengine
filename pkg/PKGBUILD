@@ -1,0 +1,123 @@
+# Flags: override from the environment, e.g. `_lto=no paru -S linux-wallpaperengine-moloko`.
+: "${_lto:=yes}"           # yes | no
+: "${_o3:=yes}"            # yes | no
+
+pkgname=linux-wallpaperengine-moloko
+_pkgname=linux-wallpaperengine
+pkgver=r647.34af1c9
+pkgrel=1
+pkgdesc='Wallpaper Engine backgrounds for Linux, built for one machine (moloko)'
+arch=(x86_64)
+url='https://github.com/powersemmi/linux-wallpaperengine'
+license=(GPL-3.0-only)
+depends=(
+  alsa-lib
+  at-spi2-core
+  cairo
+  dbus
+  expat
+  ffmpeg
+  freetype2
+  glew
+  glfw
+  glib2
+  glibc
+  libcups
+  libgcc
+  libglvnd
+  libpulse
+  libstdc++
+  libx11
+  libxcb
+  libxcomposite
+  libxdamage
+  libxext
+  libxfixes
+  libxkbcommon
+  libxrandr
+  lz4
+  mesa
+  mpv
+  nspr
+  nss
+  pango
+  sdl2
+  systemd-libs
+  wayland
+)
+makedepends=(
+  cmake
+  freeglut
+  git
+  glm
+  ninja
+  wayland-protocols
+)
+provides=("$_pkgname")
+conflicts=("$_pkgname" "$_pkgname-git" niri-wallpaperengine-git)
+# LTO comes from CMake (_lto), not from makepkg.
+options=(!lto !debug)
+source=("$_pkgname::git+https://github.com/powersemmi/linux-wallpaperengine.git#branch=moloko")
+sha256sums=('SKIP')
+
+_flag() {
+  local name=$1 value=$2 v
+  shift 2
+  for v; do [[ $value = "$v" ]] && return 0; done
+  error "$name=$value: expected one of: $*"
+  exit 1
+}
+
+_check_flags() {
+  _flag _lto "$_lto" yes no
+  _flag _o3 "$_o3" yes no
+}
+
+pkgver() {
+  cd $_pkgname
+  printf 'r%s.%s' "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+}
+
+prepare() {
+  _check_flags
+  cd $_pkgname
+  git submodule update --init --recursive
+}
+
+build() {
+  local opt=-O2
+  [[ $_o3 = yes ]] && opt=-O3
+  local ipo=OFF
+  [[ $_lto = yes ]] && ipo=ON
+
+  # CMAKE_<LANG>_FLAGS_RELEASE comes after makepkg's CFLAGS, so it decides the -O level.
+  CFLAGS+=" -march=native -Wno-builtin-macro-redefined"
+  CXXFLAGS+=" -march=native -Wno-builtin-macro-redefined"
+  # GCC LTO needs a linker with the GCC plugin: ld.bfd, not lld from makepkg.conf.
+  LDFLAGS=${LDFLAGS//-fuse-ld=lld/}
+  export CFLAGS CXXFLAGS LDFLAGS
+
+  cmake -B build -S $_pkgname -G Ninja \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/opt/$_pkgname \
+    -DCMAKE_C_COMPILER=/usr/bin/gcc \
+    -DCMAKE_CXX_COMPILER=/usr/bin/g++ \
+    -DCMAKE_C_FLAGS_RELEASE="$opt -DNDEBUG" \
+    -DCMAKE_CXX_FLAGS_RELEASE="$opt -DNDEBUG" \
+    -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=$ipo \
+    -DCMAKE_POLICY_DEFAULT_CMP0069=NEW \
+    -Wno-dev
+  cmake --build build
+}
+
+package() {
+  DESTDIR="$pkgdir" cmake --install build
+
+  # The binary finds its libraries and CEF resources through $ORIGIN; the wrapper keeps the
+  # caller's working directory, so relative wallpaper paths work.
+  install -d "$pkgdir/usr/bin"
+  printf '#!/bin/sh\nexec /opt/%s/%s "$@"\n' $_pkgname $_pkgname > "$pkgdir/usr/bin/$_pkgname"
+  chmod 755 "$pkgdir/usr/bin/$_pkgname"
+}
+
+# vim:set ts=8 sts=2 sw=2 et:

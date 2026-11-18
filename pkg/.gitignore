@@ -1,0 +1,5 @@
+/src/
+/pkg/
+/linux-wallpaperengine/
+*.pkg.tar.*
+*.log
