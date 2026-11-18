@@ -15,6 +15,7 @@
 #include "WallpaperEngine/Audio/Drivers/SDLAudioDriver.h"
 
 #include "WallpaperEngine/Input/InputContext.h"
+#include "WallpaperEngine/Input/WorkspaceParallax.h"
 #include "WallpaperEngine/WebBrowser/WebBrowserContext.h"
 
 #include "WallpaperEngine/Data/Model/Types.h"
@@ -80,6 +81,10 @@ public:
      * Gets the currently set destination framebuffer for rendering. If not set, returns 0 (the default framebuffer).
      */
     [[nodiscard]] GLuint getDestinationFramebuffer () const;
+    /**
+     * @return Where workspace parallax takes the active workspace from, nullptr when it is off
+     */
+    [[nodiscard]] const Input::WorkspacePositionSource* getWorkspacePositionSource () const;
 
 private:
     /**
@@ -176,6 +181,7 @@ private:
     std::unique_ptr<WallpaperEngine::Render::Drivers::Detectors::FullScreenDetector> m_fullScreenDetector = nullptr;
     std::unique_ptr<WallpaperEngine::WebBrowser::WebBrowserContext> m_browserContext = nullptr;
     std::unique_ptr<WallpaperEngine::Media::MediaSource> m_mediaSource = nullptr;
+    std::unique_ptr<WallpaperEngine::Input::WorkspacePositionSource> m_workspacePositionSource = nullptr;
     std::mt19937 m_playlistRng { std::random_device {}() };
     bool m_isPaused = false;
     bool m_screenShotTaken = false;

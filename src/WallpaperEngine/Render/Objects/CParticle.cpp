@@ -1854,8 +1854,7 @@ void CParticle::updateMatrices () {
 }
 
 void CParticle::applyParallaxToModelMatrix () {
-    if (!getScene ().getScene ().camera.parallax.enabled
-	|| getScene ().getContext ().getApp ().getContext ().settings.mouse.disableparallax) {
+    if (!getScene ().isParallaxActive ()) {
 	return;
     }
 

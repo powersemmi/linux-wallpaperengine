@@ -27,6 +27,10 @@ void RenderContext::render (Drivers::Output::OutputViewport* viewport) {
 
     // render the background
     if (const auto ref = this->m_wallpapers.find (viewport->name); ref != this->m_wallpapers.end ()) {
+	if (const auto* source = this->m_app.getWorkspacePositionSource (); source != nullptr) {
+	    ref->second->stepWorkspaceParallax (*source, viewport->name);
+	}
+
 	ref->second->render (
 	    viewport->viewport, this->getOutput ().renderVFlip (), viewport->globalPosition, viewport->logicalSize
 	);

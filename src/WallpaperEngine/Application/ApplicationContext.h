@@ -52,6 +52,21 @@ public:
 	WAYLAND_LAYER_OVERLAY = 3,
     };
 
+    enum WORKSPACE_PARALLAX_SOURCE {
+	WORKSPACE_PARALLAX_NONE = 0,
+	WORKSPACE_PARALLAX_NIRI = 1,
+	WORKSPACE_PARALLAX_STDIN = 2,
+    };
+
+    enum WORKSPACE_PARALLAX_MODE {
+	/** Layers for scenes with camera parallax, the whole image otherwise */
+	WORKSPACE_PARALLAX_AUTO = 0,
+	/** Zoom the whole image a little and slide it */
+	WORKSPACE_PARALLAX_IMAGE = 1,
+	/** Move the scene's layers by their parallax depth */
+	WORKSPACE_PARALLAX_LAYERS = 2,
+    };
+
     struct PlaylistSettings {
 	uint32_t delayMinutes = 60;
 	std::string mode = "timer";
@@ -175,6 +190,26 @@ public:
 	} mouse;
 
 	/**
+	 * Workspace parallax: the wallpaper follows workspace switches, slower than the windows
+	 */
+	struct {
+	    /** Where workspace positions come from; NONE turns the effect off */
+	    WORKSPACE_PARALLAX_SOURCE source;
+	    /** Total travel across all workspaces, as a fraction of the screen */
+	    float strength;
+	    /** How the wallpaper is moved */
+	    WORKSPACE_PARALLAX_MODE mode;
+	    /** Spring stiffness, as niri's workspace-switch spring */
+	    float stiffness;
+	    /** Spring damping ratio, as niri's workspace-switch spring */
+	    float dampingRatio;
+	    /** Distance to the target under which the spring stops, as niri's epsilon */
+	    float epsilon;
+	    /** Log the position on every frame the wallpaper moves */
+	    bool log;
+	} workspaceParallax;
+
+	/**
 	 * Screenshot settings
 	 */
 	struct {
@@ -232,6 +267,15 @@ public:
         .mouse = {
             .enabled = true,
             .disableparallax = false,
+        },
+        .workspaceParallax = {
+            .source = WORKSPACE_PARALLAX_NONE,
+            .strength = 0.04f,
+            .mode = WORKSPACE_PARALLAX_AUTO,
+            .stiffness = 1000.0f,
+            .dampingRatio = 1.0f,
+            .epsilon = 0.0001f,
+            .log = false,
         },
         .screenshot = {
             .take = false,

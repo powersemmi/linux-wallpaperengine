@@ -269,6 +269,10 @@ void CWallpaper::render (
 	vend = uvs.vend;
     }
 
+    if (this->m_workspaceParallax.known) {
+	this->applyWorkspaceParallax (ustart, uend, vstart, vend);
+    }
+
     const GLfloat texCoords[] = {
 	ustart, vstart, uend, vstart, ustart, vend, ustart, vend, uend, vstart, uend, vend,
     };
@@ -308,6 +312,102 @@ void CWallpaper::render (
 }
 
 void CWallpaper::setPause (bool newState) { }
+
+bool CWallpaper::hasLayerParallax () const { return false; }
+
+void CWallpaper::stepWorkspaceParallax (const Input::WorkspacePositionSource& source, const std::string& output) {
+    const auto& settings = this->getContext ().getApp ().getContext ().settings.workspaceParallax;
+    auto& state = this->m_workspaceParallax;
+    const auto now = std::chrono::steady_clock::now ();
+    const float dt = std::chrono::duration<float> (now - state.lastStep).count ();
+    state.lastStep = now;
+
+    if (const uint32_t generation = source.generation (); generation != state.generation) {
+	state.generation = generation;
+
+	if (const auto position = source.position (output); position.has_value ()) {
+	    state.target = *position;
+
+	    if (!state.known) {
+		// the first position is where the wallpaper starts, nothing to animate from
+		state.known = true;
+		state.layers = settings.mode == Application::ApplicationContext::WORKSPACE_PARALLAX_LAYERS
+		    || (settings.mode == Application::ApplicationContext::WORKSPACE_PARALLAX_AUTO
+			&& this->hasLayerParallax ());
+		state.x.snap (state.target.x);
+		state.y.snap (state.target.y);
+		sLog.out (
+		    "Workspace parallax on ", output, ": moving the ", state.layers ? "layers" : "whole image",
+		    ", strength ", settings.strength
+		);
+		return;
+	    }
+
+	    state.moving = true;
+	}
+    }
+
+    if (!state.moving) {
+	return;
+    }
+
+    // a long gap means the wallpaper was paused (fullscreen) or stalled: land on the target at once
+    if (dt > 0.1f) {
+	state.x.snap (state.target.x);
+	state.y.snap (state.target.y);
+	state.moving = false;
+    } else {
+	const bool movingX
+	    = state.x.step (state.target.x, dt, settings.stiffness, settings.dampingRatio, settings.epsilon);
+	const bool movingY
+	    = state.y.step (state.target.y, dt, settings.stiffness, settings.dampingRatio, settings.epsilon);
+	state.moving = movingX || movingY;
+    }
+
+    if (settings.log) {
+	sLog.out (
+	    "Workspace parallax on ", output, ": dt ", dt, " position ", state.x.position, " ", state.y.position,
+	    " target ", state.target.x, " ", state.target.y
+	);
+    }
+}
+
+void CWallpaper::applyWorkspaceParallax (float& ustart, float& uend, float& vstart, float& vend) const {
+    const auto& state = this->m_workspaceParallax;
+    const float zoom = 1.0f + this->getContext ().getApp ().getContext ().settings.workspaceParallax.strength;
+    // the layers carry the motion themselves: the image only gets the overscan that hides their edges
+    const float px = state.layers ? 0.5f : state.x.position;
+    const float py = state.layers ? 0.5f : state.y.position;
+
+    // start is the texture coordinate at the top (left) of the screen; the visible window slides from the start
+    // of the range at position 0 to its end at position 1, so the image moves up as the workspace goes down
+    const auto slide = [zoom] (float& start, float& end, const float position) {
+	const float range = end - start;
+	const float window = range / zoom;
+	start += (range - window) * position;
+	end = start + window;
+    };
+
+    slide (ustart, uend, px);
+    slide (vstart, vend, py);
+}
+
+glm::vec2 CWallpaper::getWorkspaceLayerDisplacement () const {
+    const auto& state = this->m_workspaceParallax;
+
+    if (!state.known || !state.layers) {
+	return { 0.0f, 0.0f };
+    }
+
+    // a layer with depth + amount = 1 travels as far as the whole image would: strength of the screen, inside
+    // the overscan of applyWorkspaceParallax ()
+    const float strength = this->getContext ().getApp ().getContext ().settings.workspaceParallax.strength;
+    const float travel = strength / (1.0f + strength);
+    const float aspect = static_cast<float> (this->getHeight ()) / static_cast<float> (this->getWidth ());
+
+    // the scene's translation moves content the other way round from the texture window of the final blit
+    return { (0.5f - state.x.position) * travel, (0.5f - state.y.position) * travel * aspect };
+}
 
 void CWallpaper::setupFramebuffers () {
     const uint32_t width = this->getWidth ();

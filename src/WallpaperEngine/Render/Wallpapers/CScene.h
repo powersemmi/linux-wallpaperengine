@@ -41,12 +41,15 @@ public:
     const glm::vec2* getMousePositionLast () const;
     const glm::vec2* getMousePositionNormalized () const;
     const glm::vec2* getParallaxDisplacement () const;
+    /** @return true if layers must apply getParallaxDisplacement (): mouse parallax or workspace parallax */
+    [[nodiscard]] bool isParallaxActive () const;
 
     [[nodiscard]] const std::vector<CObject*>& getObjectsByRenderOrder () const;
     [[nodiscard]] const CObject* getObject (int id) const;
 
 protected:
     void renderFrame (const glm::ivec4& viewport) override;
+    [[nodiscard]] bool hasLayerParallax () const override;
     void updateMouse (const glm::ivec4& viewport);
 
     friend class CWallpaper;
@@ -67,6 +70,8 @@ private:
     glm::vec2 m_mousePositionLast = {};
     glm::vec2 m_mousePositionNormalized = {};
     glm::vec2 m_parallaxDisplacement = {};
+    /** Mouse displacement plus the workspace parallax one */
+    glm::vec2 m_parallaxTotal = {};
     std::shared_ptr<const CFBO> _rt_4FrameBuffer = nullptr;
     std::shared_ptr<const CFBO> _rt_8FrameBuffer = nullptr;
     std::shared_ptr<const CFBO> _rt_Bloom = nullptr;

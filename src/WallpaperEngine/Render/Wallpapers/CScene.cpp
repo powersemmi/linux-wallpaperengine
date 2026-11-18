@@ -320,6 +320,10 @@ void CScene::renderFrame (const glm::ivec4& viewport) {
 	    = glm::mix (this->m_parallaxDisplacement, (centeredMouse * amount) * influence, delay);
     }
 
+    // workspace parallax adds its own displacement on top of the mouse, without the mouse's smoothing: its spring
+    // already follows niri's animation
+    this->m_parallaxTotal = this->m_parallaxDisplacement + this->getWorkspaceLayerDisplacement ();
+
     // run a tick in the javascript logic
     this->getScriptEngine ().tick ();
 
@@ -421,7 +425,14 @@ const glm::vec2* CScene::getMousePositionLast () const { return &this->m_mousePo
 
 const glm::vec2* CScene::getMousePositionNormalized () const { return &this->m_mousePositionNormalized; }
 
-const glm::vec2* CScene::getParallaxDisplacement () const { return &this->m_parallaxDisplacement; }
+const glm::vec2* CScene::getParallaxDisplacement () const { return &this->m_parallaxTotal; }
+
+bool CScene::isParallaxActive () const {
+    return !this->getContext ().getApp ().getContext ().settings.mouse.disableparallax
+	|| this->getWorkspaceLayerDisplacement () != glm::vec2 (0.0f);
+}
+
+bool CScene::hasLayerParallax () const { return this->getScene ().camera.parallax.enabled->value->getBool (); }
 
 const std::vector<CObject*>& CScene::getObjectsByRenderOrder () const { return this->m_objectsByRenderOrder; }
 

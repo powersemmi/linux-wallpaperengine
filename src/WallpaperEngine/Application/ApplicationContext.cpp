@@ -580,6 +580,59 @@ void ApplicationContext::loadSettingsFromArgv () {
 	.flag ()
 	.action ([this] (const std::string& value) -> void { this->settings.mouse.disableparallax = true; });
 
+    auto& workspaceGroup = program.add_group ("Workspace parallax options");
+
+    workspaceGroup.add_argument ("--workspace-parallax")
+	.help (
+	    "Moves the wallpaper a little when the workspace changes, slower than the windows. "
+	    "niri: follow niri's workspaces through $NIRI_SOCKET. "
+	    "stdin: read lines \"OUTPUT X Y\" with the position of the active workspace, X and Y in [0, 1]"
+	)
+	.choices ("niri", "stdin")
+	.action ([this] (const std::string& value) -> void {
+	    this->settings.workspaceParallax.source
+		= value == "niri" ? WORKSPACE_PARALLAX_NIRI : WORKSPACE_PARALLAX_STDIN;
+	});
+
+    workspaceGroup.add_argument ("--workspace-parallax-strength")
+	.help ("Total travel across all workspaces, as a fraction of the screen (0 to 0.25). Default: 0.04")
+	.action ([this] (const std::string& text) -> void {
+	    float value = -1.0f;
+	    try {
+		value = std::stof (text);
+	    } catch (const std::exception&) { }
+	    if (!(value >= 0.0f && value <= 0.25f)) {
+		sLog.exception ("--workspace-parallax-strength must be between 0 and 0.25, got ", value);
+	    }
+	    this->settings.workspaceParallax.strength = value;
+	});
+
+    workspaceGroup.add_argument ("--workspace-parallax-mode")
+	.help (
+	    "image: zoom the whole wallpaper a little and slide it. "
+	    "layers: move a scene's layers by their parallax depth. "
+	    "auto: layers for scenes with camera parallax, image otherwise. Default: auto"
+	)
+	.choices ("auto", "image", "layers")
+	.action ([this] (const std::string& value) -> void {
+	    this->settings.workspaceParallax.mode = value == "image" ? WORKSPACE_PARALLAX_IMAGE
+		: value == "layers"                                  ? WORKSPACE_PARALLAX_LAYERS
+								     : WORKSPACE_PARALLAX_AUTO;
+	});
+
+    workspaceGroup.add_argument ("--workspace-parallax-stiffness")
+	.help ("Stiffness of the spring the wallpaper moves with; match niri's workspace-switch spring. Default: 1000")
+	.store_into (this->settings.workspaceParallax.stiffness);
+
+    workspaceGroup.add_argument ("--workspace-parallax-damping-ratio")
+	.help ("Damping ratio of that spring; match niri's workspace-switch spring. Default: 1.0")
+	.store_into (this->settings.workspaceParallax.dampingRatio);
+
+    workspaceGroup.add_argument ("--workspace-parallax-log")
+	.help ("Logs the wallpaper's position on every frame it moves")
+	.flag ()
+	.store_into (this->settings.workspaceParallax.log);
+
     configurationGroup.add_argument ("-l", "--list-properties")
 	.help ("List all the available properties and their configuration")
 	.flag ()

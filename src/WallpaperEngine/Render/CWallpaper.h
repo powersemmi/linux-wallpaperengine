@@ -2,6 +2,7 @@
 
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
+#include <chrono>
 #include <optional>
 
 #include "WallpaperEngine/Audio/AudioContext.h"
@@ -11,6 +12,7 @@
 #include "WallpaperEngine/Render/RenderContext.h"
 
 #include "WallpaperEngine/Data/Model/Wallpaper.h"
+#include "WallpaperEngine/Input/WorkspaceParallax.h"
 #include "WallpaperEngine/Media/MediaSource.h"
 
 #include "FBOProvider.h"
@@ -53,6 +55,12 @@ public:
 	const glm::ivec4& viewport, const bool vflip, const glm::ivec2& globalPosition = { 0, 0 },
 	const glm::ivec2& logicalSize = { 0, 0 }
     );
+
+    /**
+     * Moves the workspace parallax spring one frame towards the active workspace of the given output.
+     * Called once per output frame, before render ().
+     */
+    void stepWorkspaceParallax (const Input::WorkspacePositionSource& source, const std::string& output);
 
     /**
      * Pause the renderer
@@ -163,6 +171,17 @@ protected:
 
     [[nodiscard]] const Wallpaper& getWallpaperData () const;
 
+    /**
+     * @return true if the wallpaper has layers with their own parallax depth that workspace parallax can move
+     */
+    [[nodiscard]] virtual bool hasLayerParallax () const;
+
+    /**
+     * @return Displacement for the layers in the units of the scene's mouse parallax, zero unless workspace
+     * parallax moves the layers
+     */
+    [[nodiscard]] glm::vec2 getWorkspaceLayerDisplacement () const;
+
     /** The FBO used for scene output */
     std::shared_ptr<const CFBO> m_sceneFBO = nullptr;
 
@@ -189,6 +208,22 @@ private:
     WallpaperState m_state;
     /** Span info for multi-monitor spanning (optional) */
     std::optional<SpanInfo> m_spanInfo = std::nullopt;
+    /** Workspace parallax state, moved by stepWorkspaceParallax () */
+    struct {
+	/** A position arrived from the source; until then the wallpaper is drawn as usual */
+	bool known = false;
+	/** The layers move instead of the whole image */
+	bool layers = false;
+	/** The spring has not reached the target yet */
+	bool moving = false;
+	uint32_t generation = UINT32_MAX;
+	glm::vec2 target = { 0.5f, 0.5f };
+	Input::ParallaxSpring x = {};
+	Input::ParallaxSpring y = {};
+	std::chrono::steady_clock::time_point lastStep = {};
+    } m_workspaceParallax;
+    /** Applies the workspace parallax overscan and slide to the texture coordinates of the final blit */
+    void applyWorkspaceParallax (float& ustart, float& uend, float& vstart, float& vend) const;
     /** Frame counter to avoid redundant renderFrame calls when shared across viewports */
     uint32_t m_lastRenderedFrame = UINT32_MAX;
 };

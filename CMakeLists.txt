@@ -355,6 +355,8 @@ set(COMMON_SOURCES
     src/WallpaperEngine/Audio/AudioStream.cpp
     src/WallpaperEngine/Audio/AudioStream.h
 
+    src/WallpaperEngine/Input/WorkspaceParallax.cpp
+    src/WallpaperEngine/Input/WorkspaceParallax.h
     src/WallpaperEngine/Input/InputContext.cpp
     src/WallpaperEngine/Input/InputContext.h
     src/WallpaperEngine/Input/MouseInput.h

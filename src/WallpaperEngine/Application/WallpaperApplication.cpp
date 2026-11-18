@@ -823,6 +823,22 @@ void WallpaperApplication::setupOpenGLDebugging () {
 }
 
 void WallpaperApplication::setup () {
+    switch (this->m_context.settings.workspaceParallax.source) {
+	case ApplicationContext::WORKSPACE_PARALLAX_NIRI:
+	    this->m_workspacePositionSource = std::make_unique<WallpaperEngine::Input::WorkspacePositionSource> (
+		WallpaperEngine::Input::WorkspacePositionSource::Kind::Niri
+	    );
+	    break;
+	case ApplicationContext::WORKSPACE_PARALLAX_STDIN:
+	    this->m_workspacePositionSource = std::make_unique<WallpaperEngine::Input::WorkspacePositionSource> (
+		WallpaperEngine::Input::WorkspacePositionSource::Kind::Stdin
+	    );
+	    break;
+	case ApplicationContext::WORKSPACE_PARALLAX_NONE:
+	default:
+	    break;
+    }
+
     this->setupOutput ();
     this->setupAudio ();
     this->prepareOutputs ();
@@ -987,6 +1003,10 @@ ApplicationContext& WallpaperApplication::getContext () const { return this->m_c
 
 const WallpaperEngine::Render::Drivers::Output::Output& WallpaperApplication::getOutput () const {
     return this->m_renderContext->getOutput ();
+}
+
+const WallpaperEngine::Input::WorkspacePositionSource* WallpaperApplication::getWorkspacePositionSource () const {
+    return this->m_workspacePositionSource.get ();
 }
 
 void WallpaperApplication::setDestinationFramebuffer (GLuint framebuffer) {
