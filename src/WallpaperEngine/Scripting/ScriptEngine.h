@@ -167,7 +167,8 @@ private:
     bool m_layerRegistryReady = false;
     std::map<ScriptLayerHandle, bool> m_layerInitialized;
     bool m_builtinsInstalled = false;
-    Media::MediaSource& m_mediaSource;
+    // stored for the media scripting API; clang reports it as unused under -Werror
+    [[maybe_unused]] Media::MediaSource& m_mediaSource;
     std::function<void ()> m_unregisterMediaUpdateCallback;
     std::function<void ()> m_unregisterAlbumArtUpdateCallback;
 
