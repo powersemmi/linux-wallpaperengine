@@ -8,15 +8,19 @@
 - CEF's `-march=x86-64` and `-O2` no longer override the toolchain flags.
 - The bundled libraries are linked statically and stay out of the install: the package holds only
   the program and CEF.
-- Package `linux-wallpaperengine-moloko`: GCC, `-march=native`, `-O3`, LTO; flags `_lto`, `_o3`.
+- Package `linux-wallpaperengine-moloko`: clang + lld, `-march=native`, `-O3`, full LTO; flags
+  `_lto=full|thin|no`, `_o3`, `_cc=clang|gcc`.
 - paru finds the package with `Path = pkg` (checked with a scratch paru.conf).
 
 ## Decisions
 
-- GCC, not clang: upstream and the AUR packages build with GCC, CEF's flag set carries GCC-only
-  warning options under `-Werror`, and `clang` in `PATH` is a cache shim.
-- LTO through CMake (`CMAKE_INTERPROCEDURAL_OPTIMIZATION`), makepkg's own LTO is off
-  (`options=(!lto)`). The link uses ld.bfd: lld cannot link GCC LTO objects.
+- Clang by default, like the linux-moloko kernel (user's decision). GCC stays as `_cc=gcc`.
+- Full LTO by default, not ThinLTO (user's decision). The flags are set by the PKGBUILD, not by
+  CMake's IPO switch, which would choose ThinLTO for clang. makepkg's own LTO is off
+  (`options=(!lto)`).
+- CEF's `-Werror` stays on under clang: CEF checks each warning option before adding it.
+  The only clang-specific failure was `-Wunused-private-field` on `ScriptEngine::m_mediaSource`;
+  the field is marked `[[maybe_unused]]` in its own commit. No warning is suppressed globally.
 - The package is not a `-git` package: paru rebuilds it on `paru -S`, not on every `-Syu`.
 
 ## Known limitations

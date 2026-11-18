@@ -10,7 +10,8 @@ limitations live in `pkg/STATUS.md`; update it whenever the package changes stat
   commits of its own.
 - `moloko` is the default branch on GitHub. It is `upstream/main` plus a short series of real
   commits: the background-layer default, two `CMakeLists.txt` fixes (CEF flags, bundled
-  libraries out of the install), the package in `pkg/`, and these notes. Keep the series short
+  libraries out of the install), a `[[maybe_unused]]` on `ScriptEngine::m_mediaSource` that
+  clang needs under CEF's `-Werror`, the package in `pkg/`, and these notes. Keep the series short
   and rebase-friendly; code changes go in their own commits, separate from packaging.
 
 ## Syncing with upstream
@@ -35,12 +36,19 @@ If upstream changes the `--layer` option, the CEF flag handling or the `add_subd
 - Build flags follow the linux-moloko kernel package: `_name=value` from the environment, checked in
   `_check_flags` at the start of `prepare()`. A new flag is a default line at the top, a `_flag`
   call, its use in `build()`, and a row in the README table.
-- Compiler: GCC (`/usr/bin/gcc`, `/usr/bin/g++`, passed explicitly). `clang` in the user's `PATH`
-  is a compiler-cache shim, and CEF's flag set is GCC-oriented. GCC LTO needs ld.bfd: the
-  PKGBUILD drops `-fuse-ld=lld` that the user's makepkg.conf adds.
+- Compiler: `_cc=clang` (default) or `_cc=gcc`, always by path (`/usr/bin/clang`,
+  `/usr/bin/clang++`, `/usr/bin/gcc`, `/usr/bin/g++`): `clang` in the user's `PATH` is a
+  compiler-cache shim. Clang links with lld and archives with `llvm-ar`/`llvm-ranlib`. GCC uses
+  `gcc-ar`/`gcc-ranlib` and ld.bfd, because lld cannot link GCC LTO objects; the PKGBUILD drops the
+  `-fuse-ld=lld` of the user's makepkg.conf in that case.
+- LTO: `_lto=full|thin|no`, default `full`. The PKGBUILD puts `-flto=<mode>` (GCC: `-flto=auto`)
+  into CFLAGS, CXXFLAGS and LDFLAGS itself instead of using CMake's IPO switch, which would pick
+  ThinLTO for clang. CEF's macros test each warning option with `check_cxx_compiler_flag`, so the
+  GCC-only `-Wno-*` options drop out under clang and `-Werror` stays on.
 - `-march` and `-O` come from `CMAKE_<LANG>_FLAGS(_RELEASE)`. CEF's macros append their own
   `-march=x86-64` and `-O2` after them; `CMakeLists.txt` removes those two items. Check the
-  effective flags in `build/compile_commands.json` after a rebase.
+  effective flags in `build/compile_commands.json` after a rebase: every target must show the
+  chosen compiler, `-march=native`, `-O3` and `-flto=full`.
 - The bundled libraries in `src/External` are added with `EXCLUDE_FROM_ALL` and kissfft is static:
   `/opt/linux-wallpaperengine` holds only the program and CEF. After a rebase, list the package
   contents (`tar -tf *.pkg.tar.zst`) and check that no `include/`, `bin/` or tool binaries crept in.
